@@ -1,0 +1,6 @@
+node_modules
+client/node_modules
+client/dist
+server/queue.db
+.DS_Store
+npm-debug.log*

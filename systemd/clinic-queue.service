@@ -1,0 +1,16 @@
+[Unit]
+Description=Clinic queue hub (Express + React)
+After=network.target bluetooth.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/clinic-queue
+ExecStart=/usr/bin/node /home/pi/clinic-queue/server/index.js
+Restart=always
+Environment=PORT=3001
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
