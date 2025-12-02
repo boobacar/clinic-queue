@@ -37,9 +37,16 @@ const addPatient = ({ nom, prenom, motif }) => {
 const getQueue = () =>
   db
     .prepare(
-      'SELECT * FROM patients_queue WHERE status = "waiting" ORDER BY arrival_time ASC, ticket_id ASC'
+      "SELECT * FROM patients_queue WHERE status = 'waiting' ORDER BY arrival_time ASC, ticket_id ASC"
     )
     .all();
+
+const getNextWaiting = () =>
+  db
+    .prepare(
+      "SELECT * FROM patients_queue WHERE status = 'waiting' ORDER BY arrival_time ASC, ticket_id ASC LIMIT 1"
+    )
+    .get();
 
 const clearLastCalledForRoom = (roomId) =>
   db.prepare('UPDATE patients_queue SET last_called = 0 WHERE called_room = ?').run(roomId);
@@ -47,7 +54,7 @@ const clearLastCalledForRoom = (roomId) =>
 const getNextPatient = (roomId) => {
   const patient = db
     .prepare(
-      'SELECT * FROM patients_queue WHERE status = "waiting" ORDER BY arrival_time ASC, ticket_id ASC LIMIT 1'
+      "SELECT * FROM patients_queue WHERE status = 'waiting' ORDER BY arrival_time ASC, ticket_id ASC LIMIT 1"
     )
     .get();
   if (!patient) return null;
@@ -56,7 +63,7 @@ const getNextPatient = (roomId) => {
   const tx = db.transaction(() => {
     clearLastCalledForRoom(roomId);
     db.prepare(
-      'UPDATE patients_queue SET status = "called", called_room = ?, called_time = ?, last_called = 1 WHERE ticket_id = ?'
+      "UPDATE patients_queue SET status = 'called', called_room = ?, called_time = ?, last_called = 1 WHERE ticket_id = ?"
     ).run(roomId, now, patient.ticket_id);
   });
   tx();
@@ -73,7 +80,7 @@ const getNextPatient = (roomId) => {
 const getLastCalledByRoom = (roomId) =>
   db
     .prepare(
-      'SELECT * FROM patients_queue WHERE called_room = ? AND status = "called" ORDER BY called_time DESC LIMIT 1'
+      "SELECT * FROM patients_queue WHERE called_room = ? AND status = 'called' ORDER BY called_time DESC LIMIT 1"
     )
     .get(roomId);
 
@@ -98,13 +105,13 @@ const skipCurrent = ({ roomId, ticketId }) => {
       ? getPatientById(ticketId)
       : db
           .prepare(
-            'SELECT * FROM patients_queue WHERE called_room = ? AND status = "called" AND last_called = 1 ORDER BY called_time DESC LIMIT 1'
+            "SELECT * FROM patients_queue WHERE called_room = ? AND status = 'called' AND last_called = 1 ORDER BY called_time DESC LIMIT 1"
           )
           .get(roomId);
 
   if (!patient) return null;
 
-  db.prepare('UPDATE patients_queue SET status = "skipped", last_called = 0 WHERE ticket_id = ?').run(
+  db.prepare("UPDATE patients_queue SET status = 'skipped', last_called = 0 WHERE ticket_id = ?").run(
     patient.ticket_id
   );
 
@@ -114,7 +121,7 @@ const skipCurrent = ({ roomId, ticketId }) => {
 const markDone = (ticketId) => {
   const patient = getPatientById(ticketId);
   if (!patient) return null;
-  db.prepare('UPDATE patients_queue SET status = "done", last_called = 0 WHERE ticket_id = ?').run(
+  db.prepare("UPDATE patients_queue SET status = 'done', last_called = 0 WHERE ticket_id = ?").run(
     ticketId
   );
   return { ...patient, status: 'done', last_called: 0 };
@@ -125,7 +132,7 @@ const requeuePatient = (ticketId) => {
   if (!patient) return null;
   const now = new Date().toISOString();
   db.prepare(
-    'UPDATE patients_queue SET status = "waiting", arrival_time = ?, called_room = NULL, called_time = NULL, last_called = 0 WHERE ticket_id = ?'
+    "UPDATE patients_queue SET status = 'waiting', arrival_time = ?, called_room = NULL, called_time = NULL, last_called = 0 WHERE ticket_id = ?"
   ).run(now, ticketId);
   return { ...patient, status: 'waiting', arrival_time: now, called_room: null, called_time: null, last_called: 0 };
 };
@@ -134,13 +141,39 @@ const getHistory = (limit = 3, roomId) => {
   if (roomId) {
     return db
       .prepare(
-        'SELECT * FROM patients_queue WHERE status = "called" AND called_room = ? ORDER BY called_time DESC LIMIT ?'
+        "SELECT * FROM patients_queue WHERE status = 'called' AND called_room = ? ORDER BY called_time DESC LIMIT ?"
       )
       .all(roomId, limit);
   }
   return db
-    .prepare('SELECT * FROM patients_queue WHERE status = "called" ORDER BY called_time DESC LIMIT ?')
+    .prepare("SELECT * FROM patients_queue WHERE status = 'called' ORDER BY called_time DESC LIMIT ?")
     .all(limit);
+};
+
+const getPreviousForRoom = (roomId) =>
+  db
+    .prepare(
+      "SELECT * FROM patients_queue WHERE called_room = ? AND status = 'called' AND last_called = 0 ORDER BY called_time DESC, ticket_id DESC LIMIT 1"
+    )
+    .get(roomId);
+
+const getRoomState = (roomId) => {
+  const current = getLastCalledByRoom(roomId) || null;
+  const previous = getPreviousForRoom(roomId) || null;
+  const next = getNextWaiting() || null;
+  return { current, previous, next };
+};
+
+const resetQueue = () => {
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM patients_queue').run();
+    try {
+      db.prepare("DELETE FROM sqlite_sequence WHERE name = 'patients_queue'").run();
+    } catch {
+      // ignore if sqlite_sequence does not exist
+    }
+  });
+  tx();
 };
 
 module.exports = {
@@ -155,4 +188,6 @@ module.exports = {
   requeuePatient,
   getLastCalledByRoom,
   getPatientById,
+  getRoomState,
+  resetQueue,
 };

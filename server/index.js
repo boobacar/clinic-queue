@@ -14,6 +14,11 @@ app.use(express.json());
 
 app.use('/api', routes);
 
+const assetsPath = path.join(__dirname, 'assets');
+if (fs.existsSync(assetsPath)) {
+  app.use('/assets', express.static(assetsPath));
+}
+
 const distPath = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));

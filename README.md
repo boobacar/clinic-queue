@@ -70,8 +70,18 @@ Chemin par défaut : `/home/pi/clinic-queue`. Adaptez `User`, `Group`, `WorkingD
 
 ## Audio/TTS
 - Carillon : `server/assets/chime.mp3` joué avant la voix.
-- TTS : tente `pico2wave` (+ `aplay`/`ffplay`), sinon `espeak-ng`.  
+- TTS (voix plus naturelle) :
+  - prioritaire : `pico2wave` (SiVoX Pico) en français + `aplay`/`ffplay`
+  - fallback : `espeak-ng` configuré en voix fr plus douce (féminine, vitesse modérée)
 - Sortie : utilise la sortie audio par défaut (donc choisir l’enceinte Bluetooth comme périphérique principal). Si aucun moteur/lecteur n’est disponible, un log est affiché en fallback.
+
+Pour une voix la plus naturelle possible sur le Pi :
+```bash
+sudo apt install libttspico-utils aplay ffmpeg
+# test
+pico2wave -l=fr-FR -w /tmp/test.wav "Le patient numéro dix est appelé à la salle un."
+aplay /tmp/test.wav
+```
 
 ## Notes d’usage
 - Une seule app React avec sélection de mode `/` et mémorisation locale (localStorage).

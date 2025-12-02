@@ -9,6 +9,8 @@ const {
   markDone,
   getHistory,
   requeuePatient,
+  getRoomState,
+  resetQueue,
 } = require('./db');
 const { announce } = require('./audio/announce');
 const { emitCall } = require('./socket');
@@ -133,6 +135,20 @@ router.get('/history', (req, res) => {
   const roomId = req.query.room ? parseInt(req.query.room, 10) : undefined;
   const history = getHistory(limit, roomId);
   return res.json(history);
+});
+
+router.get('/roomState', (req, res) => {
+  const roomId = parseInt(req.query.room, 10);
+  if (!roomId) {
+    return res.status(400).json({ error: 'Paramètre room requis' });
+  }
+  const state = getRoomState(roomId);
+  return res.json(state);
+});
+
+router.post('/reset', (_req, res) => {
+  resetQueue();
+  return res.json({ ok: true });
 });
 
 router.get('/info', (_req, res) => {
