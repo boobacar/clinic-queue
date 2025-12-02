@@ -72,6 +72,9 @@ const announce = (ticketId, roomId) => {
     case 2:
       roomSpoken = 'deux';
       break;
+    case 3:
+      roomSpoken = 'trois';
+      break;
     default:
       roomSpoken = String(roomId);
   }

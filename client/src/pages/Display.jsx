@@ -127,6 +127,9 @@ const Display = () => {
           case 2:
             roomSpoken = 'deux';
             break;
+          case 3:
+            roomSpoken = 'trois';
+            break;
           default:
             roomSpoken = String(call.roomId);
         }

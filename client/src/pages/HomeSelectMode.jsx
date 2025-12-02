@@ -7,6 +7,7 @@ const modeRoutes = {
   display: '/display',
   room1: '/room/1',
   room2: '/room/2',
+  room3: '/room/3',
 };
 
 const storage = {
@@ -118,6 +119,12 @@ const HomeSelectMode = () => {
             onClick={() => handleNavigate('room2')}
           >
             Salle 2
+          </button>
+          <button
+            className="w-full rounded-xl bg-white text-clinic-pink-dark font-semibold py-3.5 border border-pink-200 shadow-sm hover:bg-pink-50 transition"
+            onClick={() => handleNavigate('room3')}
+          >
+            Salle 3
           </button>
         </div>
 
