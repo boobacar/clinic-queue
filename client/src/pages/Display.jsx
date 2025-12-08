@@ -252,10 +252,8 @@ const Display = () => {
             )}
 
             {galerieImages.length > 0 && (
-              <div className="mt-20">
-                <h3 className="text-4xl font-semibold text-pink-300">
-                  Galerie
-                </h3>
+              <div className="mt-10">
+                
                 <div className="mt-4 rounded-2xl bg-black/20 overflow-hidden flex items-center justify-center">
                   <img
                     src={galerieImages[galerieIndex]}
