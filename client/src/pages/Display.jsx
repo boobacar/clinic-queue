@@ -2,6 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { API_BASE, SOCKET_URL, apiFetch } from '../api';
 import logo from '../assets/logo.jpg';
+import { QRCodeSVG } from 'qrcode.react';
+
+const galerieImages = Object.values(
+  import.meta.glob('../assets/galerie/*.webp', {
+    eager: true,
+    as: 'url',
+  })
+);
 
 const slides = [
   {
@@ -66,7 +74,10 @@ const mapHistory = (rows) =>
 const Display = () => {
   const [current, setCurrent] = useState(null);
   const [history, setHistory] = useState([]);
+  const [now, setNow] = useState(() => new Date());
+  const [temperature, setTemperature] = useState(null);
   const [slideIndex, setSlideIndex] = useState(0);
+  const [galerieIndex, setGalerieIndex] = useState(0);
   const [audioEnabled] = useState(true);
   const [chime] = useState(() =>
     typeof Audio !== 'undefined' ? new Audio('/assets/chime.mp3') : null
@@ -92,6 +103,45 @@ const Display = () => {
   useEffect(() => {
     const id = setInterval(() => setSlideIndex((prev) => (prev + 1) % slides.length), 10000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!galerieImages.length) return undefined;
+    const id = setInterval(
+      () => setGalerieIndex((prev) => (prev + 1) % galerieImages.length),
+      8000
+    );
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.current_weather && typeof data.current_weather.temperature === 'number') {
+              setTemperature(data.current_weather.temperature);
+            }
+          })
+          .catch((err) => {
+            console.error('Erreur récupération météo', err);
+          });
+      },
+      (err) => {
+        console.error('Erreur géolocalisation météo', err);
+      }
+    );
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -201,25 +251,45 @@ const Display = () => {
               </p>
             )}
 
-            <div className="mt-20">
-              <h3 className="text-4xl font-semibold text-pink-300">
-                Conseil du dentiste
-              </h3>
-            </div>
-            <div className="mt-2 rounded-2xl bg-white/10 px-4 py-3 max-w-full">
-              <p className="mt-1 text-base sm:text-3xl font-semibold text-slate-50">
-                {activeSlide.title}
-              </p>
-              <p className="mt-0.5 text-2xl text-slate-100">
-                {activeSlide.body}
-              </p>
-            </div>
+            {galerieImages.length > 0 && (
+              <div className="mt-20">
+                <h3 className="text-4xl font-semibold text-pink-300">
+                  Galerie
+                </h3>
+                <div className="mt-4 rounded-2xl bg-black/20 overflow-hidden flex items-center justify-center">
+                  <img
+                    src={galerieImages[galerieIndex]}
+                    alt="Galerie de la clinique"
+                    className="h-64 sm:h-80 w-auto object-contain transition-opacity duration-700"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 sm:p-5">
-            <h3 className="text-base font-semibold mb-2.5">3 derniers appels</h3>
+            <div className="flex items-baseline justify-between mb-2.5 gap-3">
+              <h3 className="text-base font-semibold">3 derniers appels</h3>
+              <div className="text-xs text-slate-300 text-right leading-tight">
+                <div>
+                  {now.toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </div>
+                <div>
+                  {now.toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                  {temperature !== null && ` • ${Math.round(temperature)}°C`}
+                </div>
+              </div>
+            </div>
             <div className="space-y-2.5">
               {history.length === 0 && (
                 <div className="text-sm text-slate-300">Aucun appel pour le moment.</div>
@@ -240,6 +310,58 @@ const Display = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 sm:p-5">
+            <h3 className="text-base font-semibold mb-2.5 text-pink-300">
+              Conseil du dentiste
+            </h3>
+            <div className="rounded-2xl bg-white/5 px-4 py-3">
+              <p className="text-sm sm:text-lg font-semibold text-slate-50">
+                {activeSlide.title}
+              </p>
+              <p className="mt-1 text-sm sm:text-base text-slate-100">
+                {activeSlide.body}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 sm:p-5 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold mb-1 text-pink-300">
+                Visitez notre site
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-200 max-w-[12rem]">
+                Scannez le QR code pour accéder au site de la Clinique Dentaire Dabia.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-2">
+              <QRCodeSVG
+                value="https://www.cliniquedentairedabia.com/"
+                size={110}
+                bgColor="#ffffff"
+                fgColor="#020617"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 sm:p-5 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold mb-1 text-pink-300">
+                Laissez-nous un avis
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-200 max-w-[12rem]">
+                Scannez le QR code pour laisser un avis sur Google.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-2">
+              <QRCodeSVG
+                value="https://g.page/r/CUzaeiWLTXbUEBM/review"
+                size={110}
+                bgColor="#ffffff"
+                fgColor="#020617"
+              />
             </div>
           </div>
 
